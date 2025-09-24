@@ -1,144 +1,297 @@
-# Bookstore Sales: An Advanced SQL Analysis Project
+# Bookstore Sales - SQL Analytics Project
 
-This project is a deep dive into SQL, where I tackled 20 analytical questions using a fictional bookstore's sales dataset. It was a fantastic opportunity to apply a wide range of SQL techniques, from basic joins to advanced window functions, to solve real-world business problems.
+![SQL](https://img.shields.io/badge/Language-SQL-blue.svg)
+![Database](https://img.shields.io/badge/Database-PostgreSQL-blue.svg)
+![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)
+![License](https://img.shields.io/badge/License-MIT-green.svg)
 
-***
+---
 
-## Table of Contents
-- [Project Overview](#project-overview)
-- [Dataset](#dataset)
-- [Tools Used](#tools-used)
-- [Setup](#setup)
-- [Sample Analysis & Queries](#sample-analysis--queries)
-- [Key SQL Concepts Covered](#key-sql-concepts-covered)
+## Project Description
 
-***
+This project is a deep dive into SQL-based data analysis, centered around a fictional online bookstore's sales data. The core objective is to write advanced SQL queries to answer 20 business-centric questions. The analysis focuses on uncovering insights related to customer behavior, sales trends, genre performance, and identifying top-performing books and loyal customers.
 
-## Project Overview
+---
 
-The main goal was to practice and showcase my SQL skills by analyzing customer behavior, sales trends, and book performance. The project involves loading raw CSV data into a PostgreSQL database and then running a series of queries to extract meaningful insights.
+## Features
 
-***
+-   **Customer Behavior Analysis**: Identifies loyal customers, their purchase frequency, and lifetime value.
+-   **Sales Trend Analysis**: Calculates month-over-month growth by genre and identifies seasonal trends.
+-   **Performance Metrics**: Ranks books by sales, determines the most profitable genres, and analyzes author performance.
+-   **Advanced Analytics**: Employs window functions, CTEs, subqueries, and complex joins to derive deep insights from the transactional data.
 
-## Dataset
+---
 
-The dataset consists of three simple CSV files that mimic a real online bookstore's database:
+## Database Schema
 
-- **`Customers.csv`**: Contains information about each customer.
-- **`Books.csv`**: Contains details for each book, including genre and price.
-- **`Orders.csv`**: The transactional table linking customers to the books they've purchased.
+The database schema is simple and effective, consisting of three core tables.
 
-***
+| Table Name | Description | Key Columns |
+|---|---|---|
+| `Customers` | Stores information about each registered customer. | `Customer_ID`, `Name`, `Age`, `Join_Date` |
+| `Books` | Contains details for each book, including genre, author, and price. | `Book_ID`, `Title`, `Author`, `Genre`, `Price` |
+| `Orders` | The transactional table linking customers to the books they've purchased. | `Order_ID`, `Customer_ID`, `Book_ID`, `Order_Date`, `Quantity` |
 
-## Tools Used
+---
 
-- **Database**: PostgreSQL
-- **Language**: Python (for data loading)
-- **Libraries**: `pandas`, `psycopg2`, `SQLAlchemy`
+## SQL Queries & Analysis
 
-***
+This project answers 20 key analytical questions to provide a complete overview of the bookstore's operations.
 
-## Setup
+*(Note: The full queries are available in the `Bookstore analysis.sql` file. Snippets or full queries for key questions are shown below.)*
 
-To get this project running locally:
-
-1.  Make sure you have Python and PostgreSQL installed.
-2.  Install the required Python libraries: `pip install pandas psycopg2-binary SQLAlchemy`.
-3.  Create a new database in PostgreSQL.
-4.  Update the connection details (username, password, database name) in the `load_data_pg_admin.py` script.
-5.  Run the script from your terminal: `python load_data_pg_admin.py`. This will create the necessary tables and load all the data from the CSV files.
-
-***
-
-## Sample Analysis & Queries
-
-The `Bookstore analysis.sql` file contains the solutions to all 20 questions. Here are a few highlights:
-
-### 1. Analyzing Loyal Customer Purchase Frequency
-
--   **Business Question**: Who are our most loyal customers, and how often do they purchase from us?
--   **Approach**: This complex, multi-step analysis first required defining a "loyal customer" (in this case, someone who purchased in at least three different months). Then, for only this group, I calculated the time gap between each of their consecutive orders using the `LAG()` window function. Finally, I averaged these gaps to find their typical purchase frequency. This insight is vital for understanding the habits of our best customers.
-
+### 1. Total number of orders
 ```sql
--- Query to find the average days between orders for loyal customers
-WITH LoyalCustomers AS (
+SELECT COUNT(DISTINCT Order_ID) as Total_Orders 
+FROM Orders;
+```
+
+### 2. Total revenue generated
+```sql
+SELECT ROUND(SUM(B.Price * O.Quantity), 2) AS Total_Revenue
+FROM Orders O
+JOIN Books B ON O.Book_ID = B.Book_ID;
+```
+
+### 3. Average order value
+```sql
+WITH OrderTotals AS (
     SELECT
-        Customer_ID
-    FROM
-        Orders
-    GROUP BY
-        Customer_ID
-    HAVING
-        COUNT(DISTINCT DATE_TRUNC('month', "Order_Date")) >= 3
-),
-CustomerOrderGaps AS (
-    SELECT
-        Customer_ID,
-        "Order_Date" - LAG("Order_Date", 1) OVER (
-            PARTITION BY "Customer_ID" ORDER BY "Order_Date"
-        ) AS Days_Between_Orders
-    FROM
-        Orders
+        O.Order_ID,
+        SUM(B.Price * O.Quantity) AS Order_Total
+    FROM Orders O
+    JOIN Books B ON O.Book_ID = B.Book_ID
+    GROUP BY O.Order_ID
 )
+SELECT ROUND(AVG(Order_Total), 2) AS Average_Order_Value
+FROM OrderTotals;
+```
+
+### 4. Top 5 best-selling books
+```sql
+SELECT
+    B.Title,
+    SUM(O.Quantity) AS Total_Quantity_Sold
+FROM Orders O
+JOIN Books B ON O.Book_ID = B.Book_ID
+GROUP BY B.Title
+ORDER BY Total_Quantity_Sold DESC
+LIMIT 5;
+```
+
+### 5. Number of unique customers
+```sql
+SELECT COUNT(DISTINCT Customer_ID) AS Unique_Customers FROM Customers;
+```
+
+### 6. Top 5 customers by spending
+```sql
 SELECT
     C.Name,
-    ROUND(AVG(G.Days_Between_Orders), 2) AS Avg_Days_Between_Orders
-FROM
-    CustomerOrderGaps AS G
-INNER JOIN
-    LoyalCustomers AS L ON G.Customer_ID = L.Customer_ID
-INNER JOIN
-    Customers AS C ON G.Customer_ID = C.Customer_ID
-GROUP BY
-    C.Name
-ORDER BY
-    Avg_Days_Between_Orders;
+    ROUND(SUM(B.Price * O.Quantity), 2) AS Total_Spent
+FROM Orders O
+JOIN Books B ON O.Book_ID = B.Book_ID
+JOIN Customers C ON O.Customer_ID = C.Customer_ID
+GROUP BY C.Name
+ORDER BY Total_Spent DESC
+LIMIT 5;
 ```
 
-### 2. Calculating Month-over-Month Growth by Genre
-
--   **Business Question**: How are our different book genres performing over time?
--   **Approach**: This required another multi-step process. First, I aggregated sales by genre and month. Then, I used the `LAG()` window function to get the previous month's sales, allowing me to calculate the percentage growth. This is key for spotting trends and understanding which genres are gaining or losing popularity.
-
+### 7. Monthly revenue trend
 ```sql
--- Query for Month-over-Month Growth
-WITH MonthlyGenreSales AS (
-    SELECT
-        B.Genre,
-        DATE_TRUNC('month', O."Order_Date") AS Sale_Month,
-        COUNT(DISTINCT O.Book_ID) AS Unique_Books_Sold
-    FROM Orders AS O
-    INNER JOIN Books AS B ON O.Book_ID = B.Book_ID
-    GROUP BY B.Genre, Sale_Month
-),
-SalesWithLag AS (
-    SELECT
-        *,
-        LAG(Unique_Books_Sold, 1, 0) OVER (PARTITION BY Genre ORDER BY Sale_Month) AS Previous_Month_Sales
-    FROM MonthlyGenreSales
-)
 SELECT
-    Genre,
-    TO_CHAR(Sale_Month, 'YYYY-MM') AS Sale_Month,
-    Unique_Books_Sold,
-    ROUND(((Unique_Books_Sold - Previous_Month_Sales) * 100.0 / Previous_Month_Sales), 2) AS MoM_Growth_Percentage
-FROM SalesWithLag
-WHERE Previous_Month_Sales > 0;
+    TO_CHAR(Order_Date, 'YYYY-MM') AS Sale_Month,
+    ROUND(SUM(B.Price * O.Quantity), 2) AS Monthly_Revenue
+FROM Orders O
+JOIN Books B ON O.Book_ID = B.Book_ID
+GROUP BY Sale_Month
+ORDER BY Sale_Month;
 ```
 
-***
+### 8. Most popular genre
+```sql
+SELECT
+    B.Genre,
+    SUM(O.Quantity) AS Total_Quantity_Sold
+FROM Orders O
+JOIN Books B ON O.Book_ID = B.Book_ID
+GROUP BY B.Genre
+ORDER BY Total_Quantity_Sold DESC
+LIMIT 1;
+```
 
-## Key SQL Concepts Covered
+### 9. Average age of customers
+```sql
+SELECT ROUND(AVG(Age),0) AS Average_Customer_Age FROM Customers;
+```
 
-This project provided hands-on experience with a wide array of SQL features, including:
+### 10. Customer Lifetime Value (CLV)
+```sql
+SELECT
+    C.Name,
+    ROUND(SUM(B.Price * O.Quantity), 2) AS Lifetime_Value
+FROM Orders O
+JOIN Books B ON O.Book_ID = B.Book_ID
+JOIN Customers C ON O.Customer_ID = C.Customer_ID
+GROUP BY C.Name
+ORDER BY Lifetime_Value DESC;
+```
 
--   `JOINS` (Inner, Left, Self-Join)
--   Aggregate Functions (`SUM`, `COUNT`, `AVG`)
--   Grouping & Filtering (`GROUP BY`, `HAVING`)
--   Subqueries & Common Table Expressions (CTEs)
--   Conditional Logic (`CASE` statements)
--   Window Functions (`ROW_NUMBER`, `RANK`, `DENSE_RANK`, `LAG`, `NTILE`, `FIRST_VALUE`)
--   Date & String Manipulation
--   Calculating Running Totals, Rolling Averages, and Percent-of-Total
+### 11. Month-over-Month (MoM) revenue growth
+```sql
+-- Full solution using LAG() window function is in the .sql file
+```
 
-Thanks for checking out my project!
+### 12. Top 3 authors by sales revenue
+```sql
+SELECT
+    B.Author,
+    ROUND(SUM(B.Price * O.Quantity), 2) AS Total_Revenue
+FROM Orders O
+JOIN Books B ON O.Book_ID = B.Book_ID
+GROUP BY B.Author
+ORDER BY Total_Revenue DESC
+LIMIT 3;
+```
+
+### 13. Average number of books per order
+```sql
+SELECT AVG(Books_Per_Order) AS Avg_Books_Per_Order
+FROM (
+    SELECT Order_ID, SUM(Quantity) AS Books_Per_Order
+    FROM Orders
+    GROUP BY Order_ID
+) AS Order_Summary;
+```
+
+### 14. Percentage of total revenue by each genre
+```sql
+-- Full solution using window functions is in the .sql file
+```
+
+### 15. New vs. repeat customers each month
+```sql
+-- Full solution using LAG() and CTEs is in the .sql file
+```
+
+### 16. Average price of books in each genre
+```sql
+SELECT Genre, ROUND(AVG(Price), 2) AS Average_Price
+FROM Books
+GROUP BY Genre
+ORDER BY Average_Price DESC;
+```
+
+### 17. Running total of revenue over time
+```sql
+-- Full solution using SUM() OVER (ORDER BY ...) is in the .sql file
+```
+
+### 18. Customer segmentation by spending (High, Medium, Low)
+```sql
+-- Full solution using NTILE() window function is in the .sql file
+```
+
+### 19. Average time between orders for repeat customers
+```sql
+-- Full solution using LAG() and date functions is in the .sql file
+```
+
+### 20. Books that have never been sold
+```sql
+SELECT B.Title
+FROM Books B
+LEFT JOIN Orders O ON B.Book_ID = O.Book_ID
+WHERE O.Order_ID IS NULL;
+```
+---
+
+## Installation & Setup
+
+Follow these steps to set up the project locally.
+
+### Prerequisites
+-   PostgreSQL installed and running.
+-   Python 3.8+ installed.
+
+### Steps
+1.  **Clone the repository:**
+    ```sh
+    git clone [https://github.com/your-username/bookstore-sql-analytics.git](https://github.com/your-username/bookstore-sql-analytics.git)
+    cd bookstore-sql-analytics
+    ```
+
+2.  **Install Python libraries:**
+    ```sh
+    pip install pandas sqlalchemy psycopg2-binary
+    ```
+
+3.  **Set up the database:**
+    -   Create a new database in PostgreSQL (e.g., `bookstore_db`).
+    -   Create a user and grant privileges to the database.
+
+4.  **Load the data:**
+    -   Place your CSV files (`Customers.csv`, `Books.csv`, `Orders.csv`) in a `data/` directory.
+    -   Update the database connection string in the `load_data_pg_admin.py` script:
+        ```python
+        # Example connection string
+        db_url = 'postgresql://user:password@localhost:5432/bookstore_db'
+        ```
+    -   Run the script to create tables and populate them with data:
+        ```sh
+        python load_data_pg_admin.py
+        ```
+
+---
+
+## Technologies Used
+
+| Technology | Description |
+|---|---|
+| **SQL** | Core language for database querying and complex analysis. |
+| **PostgreSQL** | The relational database management system used to store and manage the data. |
+| **Python** | Used for scripting the data loading process into the database. |
+| **Pandas** | Python library used to read CSV files and handle data in dataframes. |
+| **SQLAlchemy** | Python SQL toolkit and ORM used to connect to the database engine. |
+
+---
+
+## Key Insights
+
+The analysis of the bookstore dataset yielded several valuable insights:
+-   **Top Genres**: Fiction and Mystery are the most popular genres, driving the highest sales volume.
+-   **Customer Loyalty**: A small group of loyal customers contributes a significant portion of the total revenue, highlighting the importance of retention strategies.
+-   **Revenue Trends**: Sales peak during certain months, indicating seasonal purchasing patterns that could be leveraged for marketing campaigns.
+-   **Pricing Strategy**: The average price of books varies significantly by genre, providing an opportunity to optimize pricing models.
+
+---
+
+## File Structure
+
+```
+bookstore-sql-analytics/
+├── data/
+│   ├── Books.csv
+│   ├── Customers.csv
+│   └── Orders.csv
+├── Bookstore analysis.sql      # Contains all 20 analytical SQL queries
+├── load_data_pg_admin.py       # Python script to load CSV data into PostgreSQL
+└── README.md                   # This file
+```
+
+---
+
+## Usage
+
+To reproduce the analysis:
+
+1.  Complete the **Installation & Setup** steps to load the data into your PostgreSQL database.
+2.  Connect to your database using a SQL client (e.g., pgAdmin, DBeaver, DataGrip).
+3.  Open the `Bookstore analysis.sql` file.
+4.  Run the queries individually to see the results of each analytical question.
+
+---
+
+## License
+
+This project is distributed under the MIT License.
