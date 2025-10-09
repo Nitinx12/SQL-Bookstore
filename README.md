@@ -6,7 +6,7 @@ Welcome to **The Bookworm's Compass**, a comprehensive data analytics project th
 
 ## 🚀 Project Overview
 
-This project simulates a real-world scenario where a bookstore wants to understand its performance better. By analyzing three core datasets—**Books**, **Customers**, and **Orders**—we answer critical business questions related to sales trends, customer segmentation, genre popularity, and revenue metrics. The goal is to transform raw data into a clear narrative that can inform strategic decisions.
+This project simulates a real-world scenario where a bookstore wants to understand its performance better. By analyzing three core datasets **Books**, **Customers**, and **Orders** we answer critical business questions related to sales trends, customer segmentation, genre popularity, and revenue metrics. The goal is to transform raw data into a clear narrative that can inform strategic decisions.
 
 ### Key Objectives:
 * **Analyze Sales Performance:** Investigate revenue by genre, track sales over time, and identify top-selling books.
