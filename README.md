@@ -150,7 +150,7 @@ The Jupyter Notebook analysis visualizes the most common email service providers
 
 ## 👨‍💻 Author
 
-* **Nitin Kumar**
+* **Nitin**
 * **GitHub:** [Nitinx12](https://github.com/Nitinx12)
 
 Feel free to reach out with any questions or feedback!
