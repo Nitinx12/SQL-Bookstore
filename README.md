@@ -80,12 +80,35 @@ Before running the data loader script (`load_data_pg_admin.py`), you must update
 
 -   `conn_string = 'postgresql://YOUR_USERNAME:YOUR_PASSWORD@localhost/YOUR_DATABASE_NAME'`
 
-## 🛣️ Roadmap
+### ❓ Who are the loyal customers and how often do they purchase?
+This query first identifies "loyal customers" (defined as those who made purchases in at least 3 different months) and then calculates their average number of days between consecutive orders. This is crucial for understanding the purchasing frequency of the most engaged customers.
 
--   [ ] Implement customer segmentation using clustering algorithms.
--   [ ] Develop a predictive model for book sales forecasting.
--   [ ] Build an interactive dashboard with Streamlit or Dash to visualize key metrics in real-time.
--   [ ] See the [open issues](https://github.com/Nitinx12/Bookstore-Data-Analysis/issues) for a full list of proposed features (and known issues).
+**SQL Query:**
+```sql
+WITH LoyalCustomers AS (
+    SELECT Customer_ID
+    FROM Orders
+    GROUP BY Customer_ID
+    HAVING COUNT(DISTINCT DATE_TRUNC('month', Order_Date)) >= 3
+),
+CustomerOrderGaps AS (
+    SELECT
+        Customer_ID,
+        Order_Date - LAG(Order_Date, 1) OVER (
+            PARTITION BY Customer_ID ORDER BY Order_Date
+        ) AS Days_Between_Orders
+    FROM Orders
+    WHERE Customer_ID IN (SELECT Customer_ID FROM LoyalCustomers)
+)
+SELECT
+    C.Name,
+    AVG(COG.Days_Between_Orders) AS Avg_Days_Between_Orders
+FROM CustomerOrderGaps COG
+JOIN Customers C ON COG.Customer_ID = C.Customer_ID
+WHERE COG.Days_Between_Orders IS NOT NULL
+GROUP BY C.Name
+ORDER BY Avg_Days_Between_Orders;
+```
 
 ## 🤝 Contributing
 
@@ -108,10 +131,3 @@ Nitin K - Nitin321x@gmail.com
 Project Link: [https://github.com/Nitinx12/Bookstore-Data-Analysis](https://github.com/Nitinx12/Bookstore-Data-Analysis)
 
 LinkedIn: [https://www.linkedin.com/in/nitin-k-220651351/](https://www.linkedin.com/in/nitin-k-220651351/)
-
-## 🙏 Acknowledgments
-
-* [Pandas](https://pandas.pydata.org/)
-* [Matplotlib](https://matplotlib.org/)
-* [Seaborn](https://seaborn.pydata.org/)
-* [Shields.io](https://shields.io)
